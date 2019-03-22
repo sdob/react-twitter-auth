@@ -126,7 +126,11 @@ class TwitterLogin extends Component {
         {
           method: "POST",
           credentials: this.props.credentials,
-          headers: this.getHeaders()
+          headers: this.getHeaders(),
+          body: {
+            oauth_verifier: oAuthVerifier,
+            oauth_token: oauthToken,
+          },
         }
       )
       .then(response => {
