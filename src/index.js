@@ -17,66 +17,124 @@ class TwitterLogin extends Component {
   }
 
   getHeaders() {
-    const headers = Object.assign({}, this.props.customHeaders);
-    headers['Content-Type'] = 'application/json';
-    return headers;
+    const { customHeaders } = this.prop;
+    return {
+      ...customHeaders,
+      'Content-Type': 'application/json',
+    };
   }
 
   getRequestToken() {
+    const {
+      credentials,
+      forceLogin,
+      requestTokenUrl,
+    } = this.props;
     const popup = this.openPopup();
 
     return window
-      .fetch(this.props.requestTokenUrl, {
+      .fetch(requestTokenUrl, {
+        credentials,
         method: 'POST',
-        credentials: this.props.credentials,
         headers: this.getHeaders()
       })
       .then(response => response.json())
       .then((data) => {
-        let authenticationUrl = `https://api.twitter.com/oauth/authenticate?oauth_token=${
-          data.oauth_token
-        }&force_login=${this.props.forceLogin}`;
+        /* eslint-disable camelcase */
+        const { screenName } = this.props;
+        const { oauth_token } = data;
+        let authenticationUrl = `https://api.twitter.com/oauth/authenticate?oauth_token=${oauth_token}&force_login=${forceLogin}`;
 
-        if (this.props.screenName) {
-          authenticationUrl = `${authenticationUrl}&screen_name=${
-            this.props.screenName
-          }`;
+        if (screenName) {
+          authenticationUrl = `${authenticationUrl}&screen_name=${screenName}`;
         }
 
         popup.location = authenticationUrl;
         this.polling(popup);
+        /* eslint-enable camelcase */
       })
       .catch((error) => {
+        const { onFailure } = this.props;
         popup.close();
-        return this.props.onFailure(error);
+        return onFailure(error);
       });
   }
 
+  getOauthToken(oAuthVerifier, oauthToken) {
+    const {
+      credentials,
+      loginUrl,
+      onFailure,
+      onSuccess,
+    } = this.props;
+    return window
+      .fetch(
+        `${loginUrl}?oauth_verifier=${oAuthVerifier}&oauth_token=${oauthToken}`,
+        {
+          credentials,
+          method: 'POST',
+          headers: this.getHeaders(),
+          body: JSON.stringify({
+            oauth_verifier: oAuthVerifier,
+            oauth_token: oauthToken,
+          }),
+        },
+      )
+      .then((response) => {
+        onSuccess(response);
+      })
+      .catch(error => onFailure(error));
+  }
+
+  getDefaultButtonContent() {
+    const { showIcon, text } = this.props;
+    const defaultIcon = showIcon ? (
+      <TwitterIcon color="#00aced" size={25} />
+    ) : null;
+
+    return (
+      <span>
+        {defaultIcon}
+        {' '}
+        {text}
+      </span>
+    );
+  }
+
   openPopup() {
-    const w = this.props.dialogWidth;
-    const h = this.props.dialogHeight;
+    const { dialogWidth, dialogHeight } = this.props;
+    const w = dialogWidth;
+    const h = dialogHeight;
     const left = screen.width / 2 - w / 2;
     const top = screen.height / 2 - h / 2;
+
+    const windowFeatures = [
+      'toolbar=no',
+      'location=no',
+      'directories=no',
+      'menubar=no',
+      'scrollbars=no',
+      'resizable=no',
+      'copyhistory=no',
+      `width=${w}`,
+      `height=${h}`,
+      `top=${top}`,
+      `left=${left}`,
+    ].join(', ');
 
     return window.open(
       '',
       '',
-      `toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=no, copyhistory=no, width=${
-        w
-      }, height=${
-        h
-      }, top=${
-        top
-      }, left=${
-        left}`
+      windowFeatures,
     );
   }
 
   polling(popup) {
+    const { onFailure } = this.props;
     const polling = setInterval(() => {
       if (!popup || popup.closed || popup.closed === undefined) {
         clearInterval(polling);
-        this.props.onFailure(new Error('Popup has been closed by user'));
+        onFailure(new Error('Popup has been closed by user'));
       }
 
       const closeDialog = () => {
@@ -87,7 +145,7 @@ class TwitterLogin extends Component {
       try {
         if (
           !popup.location.hostname.includes('api.twitter.com')
-          && !popup.location.hostname == ''
+          && popup.location.hostname !== ''
         ) {
           if (popup.location.search) {
             const query = new URLSearchParams(popup.location.search);
@@ -99,11 +157,11 @@ class TwitterLogin extends Component {
             return this.getOauthToken(oauthVerifier, oauthToken);
           }
           closeDialog();
-          return this.props.onFailure(
+          return onFailure(
             new Error(
               'OAuth redirect has occurred but no query or hash parameters were found. '
-                  + 'They were either not set during the redirect, or were removed—typically by a '
-                  + 'routing library—before Twitter react component could read it.'
+              + 'They were either not set during the redirect, or were removed—typically by a '
+              + 'routing library—before Twitter react component could read it.'
             )
           );
         }
@@ -114,58 +172,31 @@ class TwitterLogin extends Component {
     }, 500);
   }
 
-  getOauthToken(oAuthVerifier, oauthToken) {
-    return window
-      .fetch(
-        `${
-          this.props.loginUrl
-        }?oauth_verifier=${oAuthVerifier}&oauth_token=${oauthToken}`,
-        {
-          method: 'POST',
-          credentials: this.props.credentials,
-          headers: this.getHeaders(),
-          body: {
-            oauth_verifier: oAuthVerifier,
-            oauth_token: oauthToken,
-          },
-        }
-      )
-      .then((response) => {
-        this.props.onSuccess(response);
-      })
-      .catch(error => this.props.onFailure(error));
-  }
-
-  getDefaultButtonContent() {
-    const defaultIcon = this.props.showIcon ? (
-      <TwitterIcon color="#00aced" size={25} />
-    ) : null;
-
-    return (
-      <span>
-        {defaultIcon}
-        {' '}
-        {this.props.text}
-      </span>
-    );
-  }
 
   render() {
+    const {
+      children,
+      className,
+      disabled,
+      style,
+      tag,
+    } = this.props;
     const twitterButton = React.createElement(
-      this.props.tag,
+      tag,
       {
+        style,
+        disabled,
+        className,
         onClick: this.onButtonClick,
-        style: this.props.style,
-        disabled: this.props.disabled,
-        className: this.props.className
       },
-      this.props.children ? this.props.children : this.getDefaultButtonContent()
+      children ? children : this.getDefaultButtonContent(),
     );
     return twitterButton;
   }
 }
 
 TwitterLogin.propTypes = {
+  children: PropTypes.node,
   tag: PropTypes.string,
   text: PropTypes.string,
   loginUrl: PropTypes.string.isRequired,
@@ -179,12 +210,13 @@ TwitterLogin.propTypes = {
   dialogHeight: PropTypes.number,
   showIcon: PropTypes.bool,
   credentials: PropTypes.oneOf(['omit', 'same-origin', 'include']),
-  customHeaders: PropTypes.object,
+  customHeaders: PropTypes.object, // eslint-disable-line react/no-unused-prop-types
   forceLogin: PropTypes.bool,
   screenName: PropTypes.string
 };
 
 TwitterLogin.defaultProps = {
+  children: null,
   tag: 'button',
   text: 'Sign in with Twitter',
   disabled: false,
