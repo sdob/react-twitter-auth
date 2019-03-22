@@ -1,8 +1,8 @@
 
 {
   "moduleFileExtensions":[ "js", "jsx"],
-  "moduleNameMapper" :
-  {
+  "moduleNameMapper" : {
     "TwitterLogin": "<rootDir>/src/index.js"
-  }
+  },
+  "setupFilesAfterEnv": ["./setupTests.js"]
 }

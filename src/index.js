@@ -17,7 +17,7 @@ class TwitterLogin extends Component {
   }
 
   getHeaders() {
-    const { customHeaders } = this.prop;
+    const { customHeaders } = this.props;
     return {
       ...customHeaders,
       'Content-Type': 'application/json',
@@ -36,7 +36,7 @@ class TwitterLogin extends Component {
       .fetch(requestTokenUrl, {
         credentials,
         method: 'POST',
-        headers: this.getHeaders()
+        headers: this.getHeaders(),
       })
       .then(response => response.json())
       .then((data) => {
