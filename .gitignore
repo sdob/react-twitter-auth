@@ -4,3 +4,4 @@ node_modules/**
 package-lock.json
 coverage/**
 example/backend/node_modules/**
+*.*.sw[a-p]
